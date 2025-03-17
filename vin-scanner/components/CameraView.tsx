@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { View, Text, Image, Alert } from "react-native";
+import { View, Text, Image, Alert, TextInput } from "react-native";
 import { Camera } from "react-native-vision-camera"
 import { uploadToS3 } from "@/scripts/s3Upload";
 import Button from "./Button";
@@ -37,15 +37,27 @@ const CameraView: React.FC<CameraViewProps> = ({
         if (!photo) return;
         setUploading(true);
         setUploadError(null);
-
-        const result = await uploadToS3(photo, roomKey);
-
-        setUploading(false);
-
-        if (!result.success) {
-            setUploadError("Upload failed. Please try again.");
-        }
-    };
+      
+        Alert.prompt(
+          "Add Repair Info",
+          "Enter details about what was repaired:",
+          async (repairInfo) => {
+            if (!repairInfo) repairInfo = "No repair info provided"; // Default if empty
+      
+            const result = await uploadToS3(photo, roomKey, repairInfo);
+            setUploading(false);
+      
+            if (result.success) {
+                Alert.alert("✅ Upload Successful", "The image has been uploaded successfully!", [
+                  { text: "OK", onPress: () => setPhoto(null) },
+                ]);
+              } else {
+                setUploadError("❌ Upload failed. Please try again.");
+              }        
+          },
+          "plain-text"
+        );
+      };
 
     return (
         <View style={styles.viewContainer}>
@@ -57,7 +69,6 @@ const CameraView: React.FC<CameraViewProps> = ({
         {photo ? (
             <>
             <Image source={{ uri: photo }} style={styles.mediaView} />
-
             <View style={styles.buttonRow}>
                 <Button onPress={() => { setPhoto(null); setUploadError(null); }} text="❌ Retake" style={{...styles.cancelButton, ...styles.button}} />
                 <Button onPress={handleUpload} text={uploading ? "Uploading..." : "✅ Send"} style={{...styles.uploadButton, ...styles.button}} />
