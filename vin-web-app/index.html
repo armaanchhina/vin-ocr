@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VIN OCR Results</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2rem;
+        background-color: #f9f9f9;
+        color: #333;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      #roomKeyContainer {
+        margin: 1rem 0;
+        padding: 1rem;
+        background: #eef;
+        border-left: 5px solid #88f;
+      }
+      #vinList {
+        margin-top: 2rem;
+        padding: 0;
+        list-style: none;
+      }
+      li {
+        padding: 0.75rem;
+        border-bottom: 1px solid #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔧 Live VIN OCR Viewer</h1>
+    <div id="roomKeyContainer">
+      <strong>Your Room Key:</strong> <span id="roomKey"></span>
+      <p style="margin-top: 0.5rem; font-size: 0.9rem; color: #555">
+        Paste this code into the App to start receiving OCR results.
+      </p>
+    </div>
+    <ul id="vinList"></ul>
+
+    <script>
+      // 1. Generate room key
+      function generateRoomKey() {
+        return Math.random().toString(36).substring(2, 6).toUpperCase();
+    }
+
+      const roomKey = generateRoomKey();
+      document.getElementById("roomKey").textContent = roomKey;
+      localStorage.setItem("roomKey", roomKey);
+      localStorage.setItem("vinList", JSON.stringify([]));
+
+      const vinListEl = document.getElementById("vinList");
+
+      const socket = new WebSocket("wss://8r0fliq78k.execute-api.us-west-2.amazonaws.com/staging");
+
+      socket.onopen = () => {
+        socket.send(JSON.stringify({ action: "joinRoom", roomKey }));
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const text = data.text || "(no text)";
+          const repairInfo = data.repair || "(no repair info)";
+          const raw = data.rawText ? `<br/><em>${data.rawText}</em>` : "";
+
+          const listItem = document.createElement("li");
+          listItem.innerHTML = `<strong>VIN:</strong> ${text}<br/><strong>Repair:</strong> ${repairInfo}${raw}`;
+
+          vinListEl.insertBefore(listItem, vinListEl.firstChild);
+
+          const existing = JSON.parse(localStorage.getItem("vinList") || "[]");
+          existing.push({ text, repairInfo });
+          localStorage.setItem("vinList", JSON.stringify(existing));
+        } catch (e) {
+          console.error("Failed to parse message", e);
+        }
+      };
+
+      socket.onerror = (err) => {
+        console.error("WebSocket error", err);
+      };
+    </script>
+  </body>
+</html>
