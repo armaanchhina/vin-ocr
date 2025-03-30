@@ -45,7 +45,7 @@
       // 1. Generate room key
       function generateRoomKey() {
         return Math.random().toString(36).substring(2, 6).toUpperCase();
-    }
+      }
 
       const roomKey = generateRoomKey();
       document.getElementById("roomKey").textContent = roomKey;
@@ -54,7 +54,9 @@
 
       const vinListEl = document.getElementById("vinList");
 
-      const socket = new WebSocket("wss://8r0fliq78k.execute-api.us-west-2.amazonaws.com/staging");
+      const socket = new WebSocket(
+        "wss://8r0fliq78k.execute-api.us-west-2.amazonaws.com/staging"
+      );
 
       socket.onopen = () => {
         socket.send(JSON.stringify({ action: "joinRoom", roomKey }));
@@ -63,12 +65,37 @@
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          const text = data.text || "(no text)";
-          const repairInfo = data.repair || "(no repair info)";
+          const text = data.vinNumber || "(no vin found)";
+          const repairInfo = data.repairInfo || "(no repair info)";
+          
+          // data.rawText will only exist when no vin is found
           const raw = data.rawText ? `<br/><em>${data.rawText}</em>` : "";
 
           const listItem = document.createElement("li");
-          listItem.innerHTML = `<strong>VIN:</strong> ${text}<br/><strong>Repair:</strong> ${repairInfo}${raw}`;
+          listItem.innerHTML = `
+            <strong>VIN:</strong> ${text}<br/>
+            <strong>Repair:</strong> ${repairInfo}
+            ${
+            data.rawText
+                ? `<br/><a href="#" class="toggleRaw">Show raw text</a><div class="rawText" style="display:none; margin-top: 0.5rem;"><em>${data.rawText}</em></div>`
+                : ""
+            }
+        `;
+
+          setTimeout(() => {
+            const toggleLink = listItem.querySelector(".toggleRaw");
+            if (toggleLink) {
+              toggleLink.addEventListener("click", (e) => {
+                e.preventDefault();
+                const rawTextDiv = listItem.querySelector(".rawText");
+                const isHidden = rawTextDiv.style.display === "none";
+                rawTextDiv.style.display = isHidden ? "block" : "none";
+                toggleLink.textContent = isHidden
+                  ? "Hide raw text"
+                  : "Show raw text";
+              });
+            }
+          }, 0);
 
           vinListEl.insertBefore(listItem, vinListEl.firstChild);
 
