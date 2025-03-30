@@ -36,7 +36,9 @@ def lambda_handler(event, context):
             # Get metadata (roomKey) from S3 object
             head = s3.head_object(Bucket=bucket_name, Key=object_key)
             room_key = head["Metadata"].get("roomkey")
-            logger.info(f"Room Key: {room_key}")
+            repair_info = head["Metadata"].get("repairinfo")
+
+            logger.info(f"Room Key: {room_key}\n Repair Info {repair_info}")
 
             if not room_key:
                 raise ValueError("roomKey metadata missing in uploaded object")
@@ -64,7 +66,8 @@ def lambda_handler(event, context):
 
             payload = {
                 "roomKey": room_key,
-                "text": vin_number
+                "vinNumber": vin_number,
+                "repairInfo": repair_info
             }
 
             if not vin_number:
