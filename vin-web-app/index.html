@@ -1,115 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VIN OCR Results</title>
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 2rem;
-        background-color: #f9f9f9;
-        color: #333;
-      }
-      h1 {
-        font-size: 1.5rem;
-      }
-      #roomKeyContainer {
-        margin: 1rem 0;
-        padding: 1rem;
-        background: #eef;
-        border-left: 5px solid #88f;
-      }
-      #vinList {
-        margin-top: 2rem;
-        padding: 0;
-        list-style: none;
-      }
-      li {
-        padding: 0.75rem;
-        border-bottom: 1px solid #ccc;
-      }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2rem;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+        }
+
+        #roomKeyContainer {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #eef;
+            border-left: 5px solid #88f;
+        }
+
+        #vinList {
+            margin-top: 2rem;
+            padding: 0;
+            list-style: none;
+        }
+
+        li {
+            padding: 0.75rem;
+            border-bottom: 1px solid #ccc;
+        }
     </style>
-  </head>
-  <body>
+</head>
+
+<body>
     <h1>🔧 Live VIN OCR Viewer</h1>
     <div id="roomKeyContainer">
-      <strong>Your Room Key:</strong> <span id="roomKey"></span>
-      <p style="margin-top: 0.5rem; font-size: 0.9rem; color: #555">
-        Paste this code into the App to start receiving OCR results.
-      </p>
+        <strong>Your Room Key:</strong> <span id="roomKey"></span>
+        <p style="margin-top: 0.5rem; font-size: 0.9rem; color: #555">
+            Paste this code into the App to start receiving OCR results.
+        </p>
     </div>
     <ul id="vinList"></ul>
 
     <script>
-      // 1. Generate room key
-      function generateRoomKey() {
-        return Math.random().toString(36).substring(2, 6).toUpperCase();
-      }
+        // hardcode for ease of testing
+        function generateRoomKey() {
+            return 1234;
+            // return Math.random().toString(36).substring(2, 6).toUpperCase();
+        }
 
-      const roomKey = generateRoomKey();
-      document.getElementById("roomKey").textContent = roomKey;
-      localStorage.setItem("roomKey", roomKey);
-      localStorage.setItem("vinList", JSON.stringify([]));
+        const roomKey = generateRoomKey();
+        document.getElementById("roomKey").textContent = roomKey;
+        localStorage.setItem("roomKey", roomKey);
+        localStorage.setItem("vinList", JSON.stringify([]));
 
-      const vinListEl = document.getElementById("vinList");
+        const vinListEl = document.getElementById("vinList");
 
-      const socket = new WebSocket(
-        "wss://8r0fliq78k.execute-api.us-west-2.amazonaws.com/staging"
-      );
+        const socket = new WebSocket(
+            "wss://8r0fliq78k.execute-api.us-west-2.amazonaws.com/staging"
+        );
 
-      socket.onopen = () => {
-        socket.send(JSON.stringify({ action: "joinRoom", roomKey }));
-      };
+        socket.onopen = () => {
+            socket.send(JSON.stringify({ action: "joinRoom", roomKey }));
+        };
 
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          const text = data.vinNumber || "(no vin found)";
-          const repairInfo = data.repairInfo || "(no repair info)";
-          
-          // data.rawText will only exist when no vin is found
-          const raw = data.rawText ? `<br/><em>${data.rawText}</em>` : "";
+        socket.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                const text = data.vinNumber || "(no vin found)";
+                const repairInfo = data.repairInfo || "(no repair info)";
 
-          const listItem = document.createElement("li");
-          listItem.innerHTML = `
+                // data.rawText will only exist when no vin is found
+                const raw = data.rawText ? `<br/><em>${data.rawText}</em>` : "";
+
+                const listItem = document.createElement("li");
+                listItem.innerHTML = `
             <strong>VIN:</strong> ${text}<br/>
             <strong>Repair:</strong> ${repairInfo}
-            ${
-            data.rawText
-                ? `<br/><a href="#" class="toggleRaw">Show raw text</a><div class="rawText" style="display:none; margin-top: 0.5rem;"><em>${data.rawText}</em></div>`
-                : ""
-            }
+            ${data.rawText
+                        ? `<br/><a href="#" class="toggleRaw">Show raw text</a><div class="rawText" style="display:none; margin-top: 0.5rem;"><em>${data.rawText}</em></div>`
+                        : ""
+                    }
         `;
 
-          setTimeout(() => {
-            const toggleLink = listItem.querySelector(".toggleRaw");
-            if (toggleLink) {
-              toggleLink.addEventListener("click", (e) => {
-                e.preventDefault();
-                const rawTextDiv = listItem.querySelector(".rawText");
-                const isHidden = rawTextDiv.style.display === "none";
-                rawTextDiv.style.display = isHidden ? "block" : "none";
-                toggleLink.textContent = isHidden
-                  ? "Hide raw text"
-                  : "Show raw text";
-              });
+                setTimeout(() => {
+                    const toggleLink = listItem.querySelector(".toggleRaw");
+                    if (toggleLink) {
+                        toggleLink.addEventListener("click", (e) => {
+                            e.preventDefault();
+                            const rawTextDiv = listItem.querySelector(".rawText");
+                            const isHidden = rawTextDiv.style.display === "none";
+                            rawTextDiv.style.display = isHidden ? "block" : "none";
+                            toggleLink.textContent = isHidden
+                                ? "Hide raw text"
+                                : "Show raw text";
+                        });
+                    }
+                }, 0);
+
+                vinListEl.insertBefore(listItem, vinListEl.firstChild);
+
+                const existing = JSON.parse(localStorage.getItem("vinList") || "[]");
+                existing.push({ text, repairInfo });
+                localStorage.setItem("vinList", JSON.stringify(existing));
+            } catch (e) {
+                console.error("Failed to parse message", e);
             }
-          }, 0);
+        };
 
-          vinListEl.insertBefore(listItem, vinListEl.firstChild);
-
-          const existing = JSON.parse(localStorage.getItem("vinList") || "[]");
-          existing.push({ text, repairInfo });
-          localStorage.setItem("vinList", JSON.stringify(existing));
-        } catch (e) {
-          console.error("Failed to parse message", e);
-        }
-      };
-
-      socket.onerror = (err) => {
-        console.error("WebSocket error", err);
-      };
+        socket.onerror = (err) => {
+            console.error("WebSocket error", err);
+        };
     </script>
-  </body>
+</body>
+
 </html>
