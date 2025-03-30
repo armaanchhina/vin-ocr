@@ -39,7 +39,7 @@ const CameraView: React.FC<CameraViewProps> = ({ roomKey, changeRoomKey }) => {
       "Add Repair Info",
       "Enter details about what was repaired:",
       async (repairInfo) => {
-        if (!repairInfo) repairInfo = "No repair info provided"; // Default if empty
+        if (!repairInfo) repairInfo = "No repair info provided";
 
         const result = await uploadToS3(photo, roomKey, repairInfo);
         setUploading(false);
