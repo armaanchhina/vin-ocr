@@ -45,21 +45,47 @@
             Paste this code into the App to start receiving OCR results.
         </p>
     </div>
+    <div style="margin-bottom: 1rem;">
+        <button id="clearBtn"
+            style="padding: 0.5rem 1rem; background: #f55; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            🗑️ Clear List
+        </button>
+    </div>
+
     <ul id="vinList"></ul>
 
     <script>
-        // hardcode for ease of testing
         function generateRoomKey() {
-            return 1234;
-            // return Math.random().toString(36).substring(2, 6).toUpperCase();
+            return Math.random().toString(36).substring(2, 6).toUpperCase();
         }
 
-        const roomKey = generateRoomKey();
+        let roomKey = localStorage.getItem("roomKey");
+        if (!roomKey) {
+            roomKey = generateRoomKey();
+            localStorage.setItem("roomKey", roomKey);
+        }
         document.getElementById("roomKey").textContent = roomKey;
-        localStorage.setItem("roomKey", roomKey);
-        localStorage.setItem("vinList", JSON.stringify([]));
+
 
         const vinListEl = document.getElementById("vinList");
+
+        document.getElementById("clearBtn").addEventListener("click", () => {
+            if (confirm("Are you sure you want to clear all VIN data?")) {
+                localStorage.removeItem("vinList");
+                vinListEl.innerHTML = "";
+            }
+        });
+
+        const existing = JSON.parse(localStorage.getItem("vinList") || "[]");
+        existing.forEach(({ text, repairInfo }) => {
+            const listItem = document.createElement("li");
+            listItem.innerHTML = `
+            <strong>VIN:</strong> ${text}<br/>
+            <strong>Repair:</strong> ${repairInfo}
+        `;
+            vinListEl.appendChild(listItem);
+        });
+
 
         const socket = new WebSocket(
             "wss://8r0fliq78k.execute-api.us-west-2.amazonaws.com/staging"
@@ -105,8 +131,9 @@
 
                 vinListEl.insertBefore(listItem, vinListEl.firstChild);
 
-                const existing = JSON.parse(localStorage.getItem("vinList") || "[]");
-                existing.push({ text, repairInfo });
+                let existing = JSON.parse(localStorage.getItem("vinList") || "[]");
+                existing.unshift({ text, repairInfo });
+                existing = existing.slice(0, 25);
                 localStorage.setItem("vinList", JSON.stringify(existing));
             } catch (e) {
                 console.error("Failed to parse message", e);
@@ -115,6 +142,8 @@
 
         socket.onerror = (err) => {
             console.error("WebSocket error", err);
+            alert("⚠️ Connection error. Please check your internet or try again later.");
+
         };
     </script>
 </body>
